@@ -1,0 +1,31 @@
+---
+- name: Setup LLM server on Ubuntu
+  hosts: ubuntu-server
+  become: true
+  remote_user: ubuntu
+  environment:
+    HOME: /home/ubuntu
+    USER: ubuntu
+    GROUP: ubuntu
+  vars:
+    deb_architecture: {
+      "aarch64": "arm64",
+      "x86_64": "amd64"
+    }
+    nvidia_driver_version: nvidia-driver-535
+
+  tasks:
+    - name: Update Ubuntu
+      ansible.builtin.include_tasks: ./tasks/upgrade_ubuntu.yaml
+
+    - name: Install Git LFS
+      ansible.builtin.include_tasks: ./tasks/install_git_lfs.yaml
+
+    - name: Setup NVIDIA driver v2
+      ansible.builtin.include_tasks: ./tasks/setup_nvidia_driver.yaml
+
+    - name: Setup Docker
+      ansible.builtin.include_tasks: ./tasks/setup_docker.yaml
+
+    - name: Setup NVIDIA container toolkit
+      ansible.builtin.include_tasks: ./tasks/setup_nvidia_container_toolkit.yaml

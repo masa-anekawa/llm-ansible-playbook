@@ -1,0 +1,63 @@
+---
+- name: Check NVIDIA driver with nvidia-smi
+  ansible.builtin.command: nvidia-smi
+  register: nvidia_smi_result
+  ignore_errors: true
+  changed_when: false
+
+- block:
+  - name: Disable nouveau drivers
+    ansible.builtin.blockinfile:
+      path: /etc/modprobe.d/blacklist-nouveau.conf
+      block: |
+        blacklist nouveau
+        options nouveau modeset=0
+      create: true
+    register: nouveau_disabled
+
+  - name: Update initramfs
+    ansible.builtin.command: update-initramfs -u
+    when: nouveau_disabled.changed
+
+  - name: List installed NVIDIA and related packages
+    ansible.builtin.shell: dpkg -l | grep -E 'nvidia-.*|cuda-.*|libcudnn.*|cudnn-.*'
+    register: installed_packages
+    changed_when: false
+    ignore_errors: true
+
+  - name: Uninstall NVIDIA drivers and related packages
+    ansible.builtin.apt:
+      name: "{{ item.split()[1] }}"
+      state: absent
+      purge: true
+    loop: "{{ installed_packages.stdout_lines }}"
+    when: installed_packages.stdout_lines is defined and installed_packages.stdout_lines | length > 0
+    register: uninstall
+    changed_when: uninstall.changed
+
+  - name: Auto-remove unnecessary packages
+    ansible.builtin.apt:
+      autoremove: true
+      force_apt_get: true
+    when: uninstall.changed
+
+  - name: Install kernel headers
+    ansible.builtin.apt:
+      name: "linux-headers-{{ ansible_kernel }}"
+      state: present
+
+  - name: Install NVIDIA driver
+    ansible.builtin.apt:
+      name: "{{ nvidia_driver_version }}"
+      state: present
+    register: nvidia_driver_install_result
+
+  - name: Update initramfs
+    ansible.builtin.command: update-initramfs -u
+    when: nvidia_driver_install_result.changed
+
+  - name: Reboot the machine after driver installation
+    ansible.builtin.reboot:
+    when: nvidia_driver_install_result.changed
+
+  when: nvidia_smi_result.rc != 0

@@ -1,0 +1,104 @@
+---
+- name: Install prerequisites for Docker
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    update_cache: true
+    state: present
+
+- name: Create Docker apt keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add Docker's official GPG key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    keyring: /etc/apt/keyrings/docker.gpg
+
+- name: Remove unofficial docker packages
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-doc
+      - docker-compose
+      - docker-compose-v2
+      - podman-docker
+      - containerd
+      - runc
+    state: absent
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: deb [arch={{ [ansible_architecture] | map('extract', deb_architecture) | first }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+    filename: docker
+
+- name: Install Docker Engine
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    cache_valid_time: 3600
+    state: present
+
+- name: Add user to Docker group
+  ansible.builtin.user:
+    name: ubuntu
+    groups: docker
+    append: true
+
+- name: Check if /etc/docker/daemon.json exists
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: daemon_json
+
+# - name: Modify /etc/docker/daemon.json to add 'data-root' entry
+#   block:
+#     - name: Install jq on Ubuntu Arm64
+#       ansible.builtin.apt:
+#         name: jq
+#         state: present
+
+#     - name: Add 'data-root' entry using jq
+#       ansible.builtin.shell: >
+#         jq '. + {"data-root": "/home/ubuntu/ebs-volume/docker-data"}' /etc/docker/daemon.json > /tmp/daemon.json.modified
+#       args:
+#         executable: /bin/bash
+
+#     - name: Replace the original daemon.json with the modified one
+#       ansible.builtin.command: mv /tmp/daemon.json.modified /etc/docker/daemon.json
+
+#   when: daemon_json.stat.exists
+
+# - name: Ensure /etc/docker/daemon.json exists and has the correct content
+#   ansible.builtin.blockinfile:
+#     path: /etc/docker/daemon.json
+#     create: true
+#     marker: ""
+#     block: |
+#       {
+#         "data-root": "/home/ubuntu/ebs-volume/docker-data"
+#       }
+#   when: not daemon_json.stat.exists
+
+# - name: restart docker
+#   ansible.builtin.service:
+#     name: docker
+#     state: restarted
+
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+  changed_when: false
+  ignore_errors: true
+
+- name: Reboot the system if required
+  ansible.builtin.reboot:
+  when: reboot_required.stat.exists

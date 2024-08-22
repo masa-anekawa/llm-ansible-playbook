@@ -1,0 +1,46 @@
+---
+- name: Add Nvidia container toolkit GPG key
+  ansible.builtin.apt_key:
+    url: https://nvidia.github.io/libnvidia-container/gpgkey
+    keyring: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+- name: Retrieve Nvidia container toolkit list file
+  uri:
+    url: https://nvidia.github.io/libnvidia-container/stable/ubuntu{{ ansible_distribution_version }}/nvidia-container-toolkit.list
+    return_content: true
+  register: nvidia_list
+
+- name: Modify the Nvidia list file content
+  ansible.builtin.set_fact:
+    nvidia_list_modified: "{{ nvidia_list.content | regex_replace('deb https://', 'deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://') }}"
+
+- name: Write the modified Nvidia list file to sources.list.d
+  copy:
+    dest: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    content: "{{ nvidia_list_modified }}"
+    mode: '0644'
+
+- name: Install Nvidia container toolkit
+  ansible.builtin.apt:
+    name: nvidia-container-toolkit
+    update_cache: true
+    state: present
+
+- name: Configure the container runtime with Nvidia
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
+
+- name: restart docker
+  ansible.builtin.service:
+    name: docker
+    state: restarted
+
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+  changed_when: false
+  ignore_errors: true
+
+- name: Reboot the system if required
+  ansible.builtin.reboot:
+  when: reboot_required.stat.exists

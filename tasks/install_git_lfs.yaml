@@ -1,0 +1,9 @@
+---
+- name: Update cache
+  ansible.builtin.apt:
+    cache_valid_time: 3600
+
+- name: Install Git lfs
+  ansible.builtin.apt:
+    name: git-lfs
+    state: present
