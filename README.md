@@ -69,10 +69,6 @@
 
 このファイルには、管理するサーバーのインベントリが含まれています。
 
-### [`.vscode/settings.json`](command:_github.copilot.openRelativePath?%5B%7B%22scheme%22%3A%22file%22%2C%22authority%22%3A%22%22%2C%22path%22%3A%22%2FUsers%2Fanek%2FPersonalProjects%2Fllm-ansible-playbook%2F.vscode%2Fsettings.json%22%2C%22query%22%3A%22%22%2C%22fragment%22%3A%22%22%7D%5D "/Users/anek/PersonalProjects/llm-ansible-playbook/.vscode/settings.json")
-
-このファイルには、Visual Studio Codeの設定が含まれています。
-
 ## ライセンス
 
 このプロジェクトはMITライセンスの下でライセンスされています。詳細はLICENSEファイルを参照してください。
